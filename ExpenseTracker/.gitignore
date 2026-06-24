@@ -1,0 +1,10 @@
+# XcodeGen 生成物
+*.xcodeproj
+*.xcworkspace
+
+# Xcode / 构建
+build/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+.DS_Store
