@@ -15,7 +15,7 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("数据备份") {
+                Section {
                     Button {
                         do {
                             let data = try BackupManager.export(from: context)
@@ -33,6 +33,8 @@ struct SettingsView: View {
                     } label: {
                         Label("导入备份", systemImage: "square.and.arrow.down")
                     }
+                } header: {
+                    Text("数据备份")
                 } footer: {
                     Text("导出后可存到 iCloud 文件、发给自己微信或邮箱。换手机时用「导入」恢复。导入会覆盖当前数据。")
                 }
