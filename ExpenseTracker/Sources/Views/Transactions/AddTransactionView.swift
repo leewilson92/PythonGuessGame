@@ -19,7 +19,8 @@ struct AddTransactionView: View {
     @State private var date: Date = .now
     @State private var note: String = ""
 
-    @FocusState private var amountFocused: Bool
+    private enum Field { case amount, original }
+    @FocusState private var focusedField: Field?
 
     private var filteredCategories: [Category] {
         categories.filter { $0.kind == kind }
@@ -50,7 +51,7 @@ struct AddTransactionView: View {
                         TextField("0.00", text: $amountText)
                             .keyboardType(.decimalPad)
                             .font(.system(size: 34, weight: .semibold))
-                            .focused($amountFocused)
+                            .focused($focusedField, equals: .amount)
                     }
                 }
 
@@ -67,6 +68,7 @@ struct AddTransactionView: View {
                             TextField("原价", text: $originalText)
                                 .keyboardType(.decimalPad)
                                 .multilineTextAlignment(.trailing)
+                                .focused($focusedField, equals: .original)
                         }
                         if let d = discountPreview, d > 0 {
                             Text("省下 \(Money.string(d))")
@@ -90,6 +92,7 @@ struct AddTransactionView: View {
                     TextField("备注", text: $note)
                 }
             }
+            .scrollDismissesKeyboard(.immediately)
             .navigationTitle("记一笔")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -98,6 +101,10 @@ struct AddTransactionView: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("保存", action: save).disabled(!canSave)
+                }
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("完成") { focusedField = nil }
                 }
             }
             .onAppear(perform: applyDefaults)
@@ -135,7 +142,7 @@ struct AddTransactionView: View {
         if selectedCategory == nil { selectedCategory = filteredCategories.first }
         // 默认上次用的支付方式
         if selectedMethod == nil { selectedMethod = recentTx.first?.paymentMethod ?? methods.first }
-        amountFocused = true
+        focusedField = .amount
     }
 
     private func save() {
