@@ -7,8 +7,6 @@ struct OverviewView: View {
     @Query private var loanPayments: [LoanPayment]
     @Query private var loans: [Loan]
 
-    @State private var showingSettings = false
-
     private var summary: MonthlySummary {
         MonthlySummary.make(month: .now, transactions: transactions, loanPayments: loanPayments)
     }
@@ -48,12 +46,6 @@ struct OverviewView: View {
                 .padding()
             }
             .navigationTitle("概览")
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button { showingSettings = true } label: { Image(systemName: "gearshape") }
-                }
-            }
-            .sheet(isPresented: $showingSettings) { SettingsView() }
         }
     }
 }

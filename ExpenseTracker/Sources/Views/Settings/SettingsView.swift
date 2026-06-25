@@ -3,9 +3,9 @@ import SwiftData
 import UniformTypeIdentifiers
 
 /// 设置：数据备份（导出 / 导入）。v1 没有 iCloud 同步时的安全网。
+/// 由「我的」Tab 的 `ProfileView` 以 `NavigationLink` push 进入，故不自带 `NavigationStack`/「完成」。
 struct SettingsView: View {
     @Environment(\.modelContext) private var context
-    @Environment(\.dismiss) private var dismiss
 
     @State private var exporting = false
     @State private var importing = false
@@ -13,59 +13,54 @@ struct SettingsView: View {
     @State private var message: String?
 
     var body: some View {
-        NavigationStack {
-            Form {
-                Section {
-                    Button {
-                        do {
-                            let data = try BackupManager.export(from: context)
-                            exportDocument = BackupDocument(data: data)
-                            exporting = true
-                        } catch {
-                            message = "导出失败：\(error.localizedDescription)"
-                        }
-                    } label: {
-                        Label("导出备份", systemImage: "square.and.arrow.up")
+        Form {
+            Section {
+                Button {
+                    do {
+                        let data = try BackupManager.export(from: context)
+                        exportDocument = BackupDocument(data: data)
+                        exporting = true
+                    } catch {
+                        message = "导出失败：\(error.localizedDescription)"
                     }
-
-                    Button {
-                        importing = true
-                    } label: {
-                        Label("导入备份", systemImage: "square.and.arrow.down")
-                    }
-                } header: {
-                    Text("数据备份")
-                } footer: {
-                    Text("导出后可存到 iCloud 文件、发给自己微信或邮箱。换手机时用「导入」恢复。导入会覆盖当前数据。")
+                } label: {
+                    Label("导出备份", systemImage: "square.and.arrow.up")
                 }
 
-                if let message {
-                    Section { Text(message).font(.footnote) }
+                Button {
+                    importing = true
+                } label: {
+                    Label("导入备份", systemImage: "square.and.arrow.down")
                 }
+            } header: {
+                Text("数据备份")
+            } footer: {
+                Text("导出后可存到 iCloud 文件、发给自己微信或邮箱。换手机时用「导入」恢复。导入会覆盖当前数据。")
             }
-            .navigationTitle("设置")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) { Button("完成") { dismiss() } }
+
+            if let message {
+                Section { Text(message).font(.footnote) }
             }
-            .fileExporter(
-                isPresented: $exporting,
-                document: exportDocument,
-                contentType: .json,
-                defaultFilename: "记账备份-\(Self.dateStamp)"
-            ) { result in
-                switch result {
-                case .success: message = "导出成功"
-                case .failure(let error): message = "导出失败：\(error.localizedDescription)"
-                }
+        }
+        .navigationTitle("数据备份")
+        .navigationBarTitleDisplayMode(.inline)
+        .fileExporter(
+            isPresented: $exporting,
+            document: exportDocument,
+            contentType: .json,
+            defaultFilename: "记账备份-\(Self.dateStamp)"
+        ) { result in
+            switch result {
+            case .success: message = "导出成功"
+            case .failure(let error): message = "导出失败：\(error.localizedDescription)"
             }
-            .fileImporter(
-                isPresented: $importing,
-                allowedContentTypes: [.json],
-                allowsMultipleSelection: false
-            ) { result in
-                handleImport(result)
-            }
+        }
+        .fileImporter(
+            isPresented: $importing,
+            allowedContentTypes: [.json],
+            allowsMultipleSelection: false
+        ) { result in
+            handleImport(result)
         }
     }
 

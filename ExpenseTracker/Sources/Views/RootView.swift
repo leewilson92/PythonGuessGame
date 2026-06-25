@@ -1,7 +1,7 @@
 import SwiftUI
 import SwiftData
 
-/// 三个 Tab：记账 / 房贷 / 概览。
+/// 四个 Tab：记账 / 房贷 / 概览 / 我的。
 struct RootView: View {
     @Environment(\.modelContext) private var context
 
@@ -15,6 +15,9 @@ struct RootView: View {
 
             OverviewView()
                 .tabItem { Label("概览", systemImage: "chart.pie.fill") }
+
+            ProfileView()
+                .tabItem { Label("我的", systemImage: "person.crop.circle") }
         }
         .task {
             // 首启种入默认分类 / 支付方式

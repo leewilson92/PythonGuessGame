@@ -26,7 +26,11 @@ struct TransactionListView: View {
                         ForEach(grouped, id: \.day) { group in
                             Section(header: dayHeader(group.day, items: group.items)) {
                                 ForEach(group.items) { tx in
-                                    TransactionRow(tx: tx)
+                                    NavigationLink {
+                                        TransactionDetailView(transaction: tx)
+                                    } label: {
+                                        TransactionRow(tx: tx)
+                                    }
                                 }
                             }
                         }
