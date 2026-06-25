@@ -2,7 +2,7 @@
 
 > 由 `architect` 子agent 产出。对应 PRD：`docs/prd/crud-completion.md`（状态：已确认，2026-06-25）。
 > 开发前需经人确认（流程门禁）。
-> 状态：**待人确认** → 确认后方可进 `developer`。
+> 状态：**已确认**（2026-06-25，含"详情页去掉记录时间"的决定）→ 可进 `developer`。
 
 ## 1. 目标与背景
 
@@ -72,7 +72,7 @@
 | 交易全字段编辑 | `Transaction` 含 `date / actualAmount / originalAmount? / kind / category? / paymentMethod? / note` | ✅ 字段够用 |
 | 排序 | 三模型均有 `sortIndex: Int` | ✅ 已存在，本期开始真正写入 |
 | 删除被引用项 = 置空 | `Transaction.category` / `.paymentMethod` 均 `deleteRule: .nullify`；反向 `Category.transactions` / `PaymentMethod.transactions` 亦 `.nullify` | ✅ **现状即 PRD 决策**，无需改规则、无需加「归档」字段 |
-| 记录时间展示（详情页） | 详情页拟展示「记录时间」。**注意**：`Transaction` 现无独立 `createdAt`，详情页「记录时间」用 `tx.date`（交易发生日期）展示即可，**不为此新增字段**（见 5.2 与第 7 节取舍） | ✅ 不加字段 |
+| 记录时间展示（详情页） | **已确认去掉**：「日期」已显示该笔日期，"记录时间"重复且 `Transaction` 无 `createdAt`。详情页不展示记录时间。 | ✅ 去掉、不加字段 |
 
 **备份兼容性**：`BackupManager` 的 DTO 仅序列化 `name / icon / kind|type / sortIndex`（及交易原始字段），不加字段即对备份零影响，`BackupManager.swift` 不改。
 
@@ -130,7 +130,7 @@
 
 - 入参 `let transaction: Transaction`。
 - 顶部金额**大字**：`signed + Money.string(actualAmount)`，收入绿色 / 支出主色（沿用 `TransactionRow` 的符号与配色规则）。
-- 字段区（`Form` 或 `List`）：收支类型（`kind.label`）、原价（有则显示 `Money.string(originalAmount)` + 「省下 `Money.string(discount)`」）、分类（`icon + name`，空 → 「未分类」）、支付方式（`name`，空 → 「未指定」）、日期（`tx.date` 格式化）、备注（空则不显示该行或显示占位）、**记录时间**（本期用 `tx.date` 同值展示，标注见取舍）。
+- 字段区（`Form` 或 `List`）：收支类型（`kind.label`）、原价（有则显示 `Money.string(originalAmount)` + 「省下 `Money.string(discount)`」）、分类（`icon + name`，空 → 「未分类」）、支付方式（`name`，空 → 「未指定」）、日期（`tx.date` 格式化）、备注（空则不显示该行或显示占位）。**不展示"记录时间"**（已确认去掉，「日期」已覆盖）。
 - `toolbar` 右上「编辑」→ 弹 `AddTransactionView(editing: transaction)`。
 - 底部「删除」按钮（destructive）：`context.delete(transaction)` 后 `dismiss()` 返回列表。建议加二次确认 `confirmationDialog`（防误删，详情页删除更显眼）。
 
@@ -226,7 +226,7 @@
 
 - **R1 `AddTransactionView` 双模式改造引入回归**（最高关注）：改 `init` 与 `applyDefaults` 可能误伤"记一笔"默认值。**缓解**：`applyDefaults` 用 `guard editing == nil` 早返回；T-11 专测两模式不串味；developer 改后必须人肉走查新建流程一遍。
 - **R2 金额字符串往返精度**：`Decimal → String → Decimal` 回显若经 `Double` 会丢精度。**取舍**：用 `NSDecimalNumber(decimal:).stringValue`（十进制字符串），与 `Decimal(string:)` 严格互逆，禁用 `String(format:)`/`Double`。T-26 守。
-- **R3「记录时间」无独立字段**：详情页要展示"记录时间"，但 `Transaction` 无 `createdAt`。**取舍**：本期用 `tx.date`（交易日期）展示，**不为此加字段**（加字段会牵动备份 DTO、迁移，超出"纯 CRUD"范围）。若后续要"真实创建时间戳"，单列改动。详情页文案可直接叫"日期"，避免误导；或注明"记录时间"等同所选日期。**这是与 PRD Q3"是否展示记录时间"对应的实现取舍，需在确认时知会。**
+- **R3「记录时间」已确认去掉**（2026-06-25）：详情页不展示"记录时间"——「日期」已显示该笔日期，重复且 `Transaction` 无 `createdAt`。**不加字段、不迁移、备份零影响。** 若后续要"真实创建时间戳"，再单列改动。
 - **R4 排序 `sortIndex` 段内 vs 全局**：分类按 kind 分两段排序，`sortIndex` 仅需段内有序（`@Query` 先全局按 `sortIndex` 排，再 `filter(kind==)`，段内相对顺序即生效）。**取舍**：不追求全局唯一连续，避免一次移动要重排所有项；只要每段内连续即可。
 - **R5 双入口混乱**：保留 `OverviewView` 齿轮 + 新 Tab 会让"设置在哪"含糊。**决策**：移除概览齿轮，设置只走「我的」Tab（信息架构单一）。
 - **R6 `@Query` 自动刷新依赖**：编辑/删除后概览刷新依赖 SwiftData `@Query` 自动更新（现状 `OverviewView`/`AddTransactionView` 都已这么用）。风险低，但 verifier 需实测 AC-3/5/6/7 的概览联动。
