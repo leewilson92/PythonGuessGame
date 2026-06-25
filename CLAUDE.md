@@ -10,8 +10,9 @@
 
 ## 开发流程（必读）
 本项目所有功能走 `DEV_PROCESS.md` 的多-agent 流水线：
-**architect（设计）→ developer（开发+白盒测试）→ reviewer（检视）→ verifier（Mac 编译/功能/性能）→ 提交**。
-子agent 定义在 `.claude/agents/`。设计文档放 `docs/design/`（模板见 `docs/design/TEMPLATE.md`）。
+**product-manager（PRD）→ architect（设计）→ developer（开发+白盒测试）→ reviewer（检视）→ verifier（Mac 编译/功能/性能）→ 提交**。
+用户作为使用者用自然语言提需求，**先到 product-manager 出 PRD**。**文档先行**：每次新增或修改功能，先更新 PRD（`docs/prd/`）与设计文档（`docs/design/`）再动代码。
+子agent 定义在 `.claude/agents/`。PRD 模板见 `docs/prd/TEMPLATE.md`，设计模板见 `docs/design/TEMPLATE.md`。
 > 编译/功能/性能测试只能在 macOS + Xcode 上跑。
 
 ## 产品不变量（改动时务必守住）
@@ -26,9 +27,9 @@
 cd ExpenseTracker
 xcodegen generate
 xcodebuild -project ExpenseTracker.xcodeproj -scheme ExpenseTracker \
-  -destination 'platform=iOS Simulator,name=iPhone 15' build   # 编译
+  -destination 'platform=iOS Simulator,name=iPhone 17' build   # 编译
 xcodebuild test -project ExpenseTracker.xcodeproj -scheme ExpenseTracker \
-  -destination 'platform=iOS Simulator,name=iPhone 15'          # 单测
+  -destination 'platform=iOS Simulator,name=iPhone 17'          # 单测
 open ExpenseTracker.xcodeproj                                    # Xcode 里 Cmd+R / Cmd+U
 ```
 
