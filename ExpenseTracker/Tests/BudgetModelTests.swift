@@ -240,6 +240,59 @@ final class BudgetModelTests: XCTestCase {
         XCTAssertEqual((try context.fetch(FetchDescriptor<Budget>())).first?.monthlyAmount, 2000)
     }
 
+    // MARK: - B-18 旧备份混合数据：含交易+分类但无 budgetAmount → 数据恢复正确、Budget 0 行、不崩
+
+    func testB18_OldBackupWithDataRestoresWithoutBudget() throws {
+        // 模拟旧版本备份 JSON：有 1 个分类 + 2 笔交易（一笔挂该分类、一笔含原价优惠），
+        // 但完全没有 budgetAmount 键。交易日期用 iso8601（解码策略一致）。
+        let catID = "cat-food"
+        let legacyJSON = """
+        {
+          "version": 1,
+          "exportedAt": "2026-01-01T00:00:00Z",
+          "categories": [
+            { "id": "\(catID)", "name": "餐饮", "icon": "fork.knife", "kind": "expense", "sortIndex": 0 }
+          ],
+          "paymentMethods": [],
+          "transactions": [
+            { "date": "2026-01-02T08:00:00Z", "actualAmount": 60, "originalAmount": 100, "kind": "expense", "note": "早餐", "categoryID": "\(catID)" },
+            { "date": "2026-01-03T12:00:00Z", "actualAmount": 200, "kind": "expense", "note": "" }
+          ],
+          "loans": []
+        }
+        """
+        let data = Data(legacyJSON.utf8)
+
+        // 解码不抛错、budgetAmount 为 nil（向后兼容）。
+        let snapshot = try makeDecoder().decode(BackupManager.Snapshot.self, from: data)
+        XCTAssertNil(snapshot.budgetAmount)
+
+        // restore 不抛错。
+        XCTAssertNoThrow(try BackupManager.restore(from: data, into: context))
+
+        // 分类恢复正确：1 个、名「餐饮」。
+        let cats = try context.fetch(FetchDescriptor<Category>())
+        XCTAssertEqual(cats.count, 1)
+        XCTAssertEqual(cats.first?.name, "餐饮")
+
+        // 交易恢复正确：2 笔；金额（Decimal）与挂分类、优惠派生值都对。
+        let txs = try context.fetch(FetchDescriptor<Transaction>())
+        XCTAssertEqual(txs.count, 2)
+        let amounts = Set(txs.map { $0.actualAmount })
+        XCTAssertEqual(amounts, [60, 200])
+        let discounted = txs.first { $0.actualAmount == 60 }
+        XCTAssertEqual(discounted?.originalAmount, 100)
+        XCTAssertEqual(discounted?.discount, 40)             // 优惠为派生值：原价 100 − 实付 60
+        XCTAssertEqual(discounted?.category?.name, "餐饮")   // 关系按 categoryID 正确重连
+        let plain = txs.first { $0.actualAmount == 200 }
+        XCTAssertNil(plain?.originalAmount)                  // 无原价 → 优惠 0
+        XCTAssertEqual(plain?.discount, 0)
+
+        // Budget 行数 == 0（无 budgetAmount 键 = 未设预算），first 为 nil、未崩。
+        XCTAssertEqual(try TestContext.count(Budget.self, in: context), 0)
+        XCTAssertNil((try context.fetch(FetchDescriptor<Budget>())).first)
+    }
+
     // MARK: - 备份解码 / 造数据帮助器
 
     private func makeDecoder() -> JSONDecoder {

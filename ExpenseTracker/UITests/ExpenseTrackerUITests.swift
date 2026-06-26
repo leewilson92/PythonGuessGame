@@ -344,6 +344,47 @@ final class ExpenseTrackerUITests: XCTestCase {
                       "已用 300 > 预算 100 时，预算卡文案应含「超支」，实际：\(overspent.label)")
     }
 
+    // MARK: - 用例 10（预算）：概览空态预算卡入口 → 点它进设预算页 → 设 1500 → 概览卡显示
+
+    /// 未设预算时，概览出现空态预算卡「未设预算，点去设置」；点它进 `BudgetEditView`，
+    /// 设 1500 → 保存 → 返回概览，断言预算卡显示上限 1500 相关文案（脱离空态、进入已设态）。
+    func testEmptyBudgetCardEntrySetsBudget() throws {
+        // 切到「概览」Tab；干净启动未设预算 → 应见空态预算卡。
+        let overviewTab = app.tabBars.buttons["概览"]
+        XCTAssertTrue(overviewTab.waitForExistence(timeout: 5), "应有「概览」Tab")
+        overviewTab.tap()
+
+        let emptyCard = app.buttons["budget-card-empty"]
+        XCTAssertTrue(emptyCard.waitForExistence(timeout: 5),
+                      "未设预算时概览应出现空态预算卡入口（budget-card-empty）")
+        emptyCard.tap()
+
+        // 进入设预算页：输 1500 → 保存。
+        let field = app.textFields["budget-amount-field"]
+        XCTAssertTrue(field.waitForExistence(timeout: 5), "点空态卡应进入设预算页、出现金额框")
+        field.tap()
+        clearText(field)
+        field.typeText("1500")
+
+        dismissKeyboardIfPresent()
+
+        let saveButton = app.buttons["保存"]
+        XCTAssertTrue(saveButton.isEnabled, "金额合法时「保存」应可点")
+        saveButton.tap()
+
+        // 返回概览（NavigationLink push，返回栈顶即概览）。
+        navigateBackToList()
+
+        // 空态卡应消失、转为已设态：断言出现「本月预算」卡 + 上限 ¥1,500.00 文案。
+        XCTAssertFalse(app.buttons["budget-card-empty"].waitForExistence(timeout: 2),
+                       "设预算后空态卡应消失")
+        XCTAssertTrue(app.staticTexts["本月预算"].waitForExistence(timeout: 5),
+                      "设预算后概览应出现已设态「本月预算」卡")
+        let budgetAmount = NSPredicate(format: "label CONTAINS %@", "¥1,500.00")
+        XCTAssertTrue(app.staticTexts.containing(budgetAmount).element(boundBy: 0).waitForExistence(timeout: 5),
+                      "预算卡应显示上限 ¥1,500.00")
+    }
+
     /// 我的 Tab → 预算 → 清空输入 → 输金额 → 保存。供预算用例复用。
     private func setBudget(_ amount: String) {
         let profileTab = app.tabBars.buttons["我的"]

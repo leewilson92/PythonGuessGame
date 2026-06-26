@@ -75,6 +75,7 @@ struct BudgetEditView: View {
         } else {
             context.insert(Budget(monthlyAmount: amount))
         }
+        try? context.save()   // 显式落盘：保证即时持久化，不依赖自动保存时机
         dismiss()
     }
 
@@ -84,6 +85,7 @@ struct BudgetEditView: View {
             context.delete(b)
         }
         amountText = ""
+        try? context.save()   // 显式落盘：删除即时持久化
         dismiss()
     }
 }
