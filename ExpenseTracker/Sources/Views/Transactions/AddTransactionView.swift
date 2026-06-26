@@ -78,6 +78,7 @@ struct AddTransactionView: View {
                             .keyboardType(.decimalPad)
                             .font(.system(size: 34, weight: .semibold))
                             .focused($focusedField, equals: .amount)
+                            .accessibilityIdentifier("amount-field")
                     }
                 }
 

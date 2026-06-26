@@ -43,6 +43,7 @@ struct TransactionListView: View {
                     Button { showingAdd = true } label: {
                         Image(systemName: "plus")
                     }
+                    .accessibilityIdentifier("add-transaction-button")
                 }
             }
             .sheet(isPresented: $showingAdd) {

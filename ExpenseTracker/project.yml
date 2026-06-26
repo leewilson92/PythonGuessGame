@@ -35,3 +35,24 @@ targets:
     settings:
       base:
         GENERATE_INFOPLIST_FILE: YES
+  ExpenseTrackerUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: UITests
+    dependencies:
+      - target: ExpenseTracker
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+schemes:
+  ExpenseTracker:
+    build:
+      targets:
+        ExpenseTracker: all
+        ExpenseTrackerTests: [test]
+        ExpenseTrackerUITests: [test]
+    test:
+      targets:
+        - ExpenseTrackerTests
+        - ExpenseTrackerUITests
