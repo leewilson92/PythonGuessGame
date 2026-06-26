@@ -12,6 +12,7 @@ enum TestContext {
         let container = try ModelContainer(
             for: Transaction.self, Category.self, PaymentMethod.self,
             Loan.self, LoanTranche.self, LoanPayment.self, LoanEvent.self,
+            Budget.self,
             configurations: config
         )
         return ModelContext(container)

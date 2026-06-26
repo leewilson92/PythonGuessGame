@@ -6,6 +6,7 @@ struct OverviewView: View {
     @Query private var transactions: [Transaction]
     @Query private var loanPayments: [LoanPayment]
     @Query private var loans: [Loan]
+    @Query private var budgets: [Budget]
 
     private var summary: MonthlySummary {
         MonthlySummary.make(month: .now, transactions: transactions, loanPayments: loanPayments)
@@ -36,6 +37,8 @@ struct OverviewView: View {
                     StatCard(title: "房贷剩余",
                              subtitle: "已还本金 \(Money.string(loanPaidPrincipal))",
                              value: Money.string(loanRemaining), tint: .green)
+
+                    BudgetCard(budget: budgets.first, used: summary.dailySpending)
 
                     Text("「本月支出」按消耗口径（只算利息），「现金流出」按现金口径（含本金）。两者互不矛盾。")
                         .font(.caption)

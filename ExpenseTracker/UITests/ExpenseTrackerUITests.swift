@@ -302,6 +302,71 @@ final class ExpenseTrackerUITests: XCTestCase {
                        "取消编辑后未保存的 250.00 不应出现")
     }
 
+    // MARK: - 用例 8（预算）：我的→预算→设 2000→概览预算卡显示
+
+    /// 我的 Tab → 预算 → 输 2000 → 保存；切到概览，断言「本月预算」卡出现且显示金额 2000。
+    func testSetBudgetShowsOnOverview() throws {
+        setBudget("2000")
+
+        // 切到「概览」Tab，断言预算卡可见。
+        let overviewTab = app.tabBars.buttons["概览"]
+        XCTAssertTrue(overviewTab.waitForExistence(timeout: 5), "应有「概览」Tab")
+        overviewTab.tap()
+
+        XCTAssertTrue(app.staticTexts["本月预算"].waitForExistence(timeout: 5),
+                      "概览应出现「本月预算」卡")
+        // 预算上限 2000 展示为「/ ¥2,000.00」，断言金额文案在。
+        let budgetAmount = NSPredicate(format: "label CONTAINS %@", "¥2,000.00")
+        XCTAssertTrue(app.staticTexts.containing(budgetAmount).element(boundBy: 0).waitForExistence(timeout: 5),
+                      "预算卡应显示上限 ¥2,000.00")
+    }
+
+    // MARK: - 用例 9（预算）：造超支 → 预算卡文案「超支」（安静变红）
+
+    /// 设预算 100 → 记一笔 300（已用 300 > 预算 100）→ 概览预算卡文案含「超支」。
+    func testBudgetOverspentShowsRedText() throws {
+        setBudget("100")
+
+        // 回「记账」Tab 记一笔 300，制造超支（不被弹窗打断，addTransaction 内无对话框处理）。
+        let recordTab = app.tabBars.buttons["记账"]
+        XCTAssertTrue(recordTab.waitForExistence(timeout: 5), "应有「记账」Tab")
+        recordTab.tap()
+        addTransaction(amount: "300.00")
+
+        // 切到概览，断言预算卡文案含「超支」。
+        let overviewTab = app.tabBars.buttons["概览"]
+        XCTAssertTrue(overviewTab.waitForExistence(timeout: 5), "应有「概览」Tab")
+        overviewTab.tap()
+
+        let overspent = app.staticTexts["budget-status-text"]
+        XCTAssertTrue(overspent.waitForExistence(timeout: 5), "预算卡应有状态文案")
+        XCTAssertTrue((overspent.label).contains("超支"),
+                      "已用 300 > 预算 100 时，预算卡文案应含「超支」，实际：\(overspent.label)")
+    }
+
+    /// 我的 Tab → 预算 → 清空输入 → 输金额 → 保存。供预算用例复用。
+    private func setBudget(_ amount: String) {
+        let profileTab = app.tabBars.buttons["我的"]
+        XCTAssertTrue(profileTab.waitForExistence(timeout: 5), "应有「我的」Tab")
+        profileTab.tap()
+
+        let budgetEntry = app.buttons["预算"]
+        XCTAssertTrue(budgetEntry.waitForExistence(timeout: 5), "「我的」里应有「预算」入口")
+        budgetEntry.tap()
+
+        let field = app.textFields["budget-amount-field"]
+        XCTAssertTrue(field.waitForExistence(timeout: 5), "预算金额输入框应出现")
+        field.tap()
+        clearText(field)
+        field.typeText(amount)
+
+        dismissKeyboardIfPresent()
+
+        let saveButton = app.buttons["保存"]
+        XCTAssertTrue(saveButton.isEnabled, "金额合法时「保存」应可点")
+        saveButton.tap()
+    }
+
     // MARK: - 文本框/导航小工具
 
     /// 清空文本框：把光标移到末尾后逐字删除。decimalPad 无全选，用退格键。

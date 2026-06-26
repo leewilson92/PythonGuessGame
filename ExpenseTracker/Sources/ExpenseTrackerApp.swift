@@ -17,6 +17,7 @@ struct ExpenseTrackerApp: App {
             container = try ModelContainer(
                 for: Transaction.self, Category.self, PaymentMethod.self,
                 Loan.self, LoanTranche.self, LoanPayment.self, LoanEvent.self,
+                Budget.self,
                 configurations: config
             )
             // 内存容器需立即种入默认数据，保证 UI 测试一上来即有种子分类 / 支付方式。

@@ -17,6 +17,12 @@ struct ProfileView: View {
                     } label: {
                         Label("支付方式管理", systemImage: "creditcard")
                     }
+
+                    NavigationLink {
+                        BudgetEditView()
+                    } label: {
+                        Label("预算", systemImage: "target")
+                    }
                 }
 
                 Section {

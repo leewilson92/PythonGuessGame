@@ -16,6 +16,8 @@ enum BackupManager {
         var paymentMethods: [PaymentMethodDTO] = []
         var transactions: [TransactionDTO] = []
         var loans: [LoanDTO] = []
+        /// 本月总预算金额。可选：旧备份无此键 → 解码为 `nil`（等价未设预算），向后兼容、不崩。
+        var budgetAmount: Decimal?
     }
 
     struct CategoryDTO: Codable {
@@ -127,6 +129,10 @@ enum BackupManager {
             snapshot.loans.append(.init(name: loan.name, tranches: tranches))
         }
 
+        // 本月总预算（全库一行）。无则保持 nil。
+        let budgets = (try? context.fetch(FetchDescriptor<Budget>())) ?? []
+        snapshot.budgetAmount = budgets.first?.monthlyAmount
+
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         encoder.dateEncodingStrategy = .iso8601
@@ -145,6 +151,7 @@ enum BackupManager {
         for l in (try? context.fetch(FetchDescriptor<Loan>())) ?? [] { context.delete(l) }
         for c in (try? context.fetch(FetchDescriptor<Category>())) ?? [] { context.delete(c) }
         for m in (try? context.fetch(FetchDescriptor<PaymentMethod>())) ?? [] { context.delete(m) }
+        for b in (try? context.fetch(FetchDescriptor<Budget>())) ?? [] { context.delete(b) }
 
         var categoryMap: [String: Category] = [:]
         for dto in snapshot.categories {
@@ -197,6 +204,11 @@ enum BackupManager {
                     context.insert(event)
                 }
             }
+        }
+
+        // 本月总预算：仅当备份带值时才创建唯一一行（旧备份 nil → 不创建 = 未设预算）。
+        if let amount = snapshot.budgetAmount {
+            context.insert(Budget(monthlyAmount: amount))
         }
 
         try context.save()
