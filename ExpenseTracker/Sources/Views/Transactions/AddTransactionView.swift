@@ -96,6 +96,7 @@ struct AddTransactionView: View {
                                 .keyboardType(.decimalPad)
                                 .multilineTextAlignment(.trailing)
                                 .focused($focusedField, equals: .original)
+                                .accessibilityIdentifier("original-field")
                         }
                         if let d = discountPreview, d > 0 {
                             Text("省下 \(Money.string(d))")

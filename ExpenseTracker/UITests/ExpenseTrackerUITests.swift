@@ -61,6 +61,33 @@ final class ExpenseTrackerUITests: XCTestCase {
         return app.buttons.containing(predicate).element(boundBy: 0)
     }
 
+    /// 在「记一笔」表单里展开支付方式 Picker 并选指定项。
+    /// Form 内菜单式 Picker 呈现为单个 Button，其 label 是「标题、当前值」合并文案
+    /// （形如「支付方式、微信」），故按 label 含「支付方式」命中，不能按精确「支付方式」。
+    /// 点开后弹出选项菜单，点对应项；选中后自动收起。先收键盘避免遮挡。
+    private func selectPaymentMethod(_ name: String) {
+        dismissKeyboardIfPresent()
+        let pickerPredicate = NSPredicate(format: "label CONTAINS %@", "支付方式")
+        let picker = app.buttons.containing(pickerPredicate).element(boundBy: 0)
+        XCTAssertTrue(picker.waitForExistence(timeout: 5), "应有「支付方式」选择器")
+        picker.tap()
+
+        let option = app.buttons[name]
+        XCTAssertTrue(option.waitForExistence(timeout: 5), "支付方式选项「\(name)」应可选")
+        option.tap()
+    }
+
+    /// 打开「有优惠（记原价）」开关。Form 内 Toggle 的整行 Switch 用 `tap()` 点在 label 区不生效，
+    /// 改点行内右侧（控件区）坐标，并断言确实翻到 on，露出下方「原价」输入框。
+    private func turnOnDiscountToggle() {
+        let toggle = app.switches["有优惠（记原价）"]
+        XCTAssertTrue(toggle.waitForExistence(timeout: 5), "应有「有优惠（记原价）」开关")
+        if toggle.value as? String == "1" { return }
+        toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
+        XCTAssertTrue(app.textFields["original-field"].waitForExistence(timeout: 5),
+                      "打开优惠开关后应出现「原价」输入框")
+    }
+
     // MARK: - 用例 1：新增交易
 
     func testAddTransaction() throws {
@@ -151,6 +178,128 @@ final class ExpenseTrackerUITests: XCTestCase {
 
         XCTAssertTrue(app.staticTexts["还没有账目"].waitForExistence(timeout: 5),
                       "删空后应回到空态「还没有账目」")
+    }
+
+    // MARK: - 用例 5：记一笔显式选支付方式 → 详情页可见
+
+    /// 记一笔时显式选「支付宝」（避开默认首项「微信」），保存后点进详情断言显示「支付宝」。
+    func testAddWithPaymentMethod() throws {
+        let addButton = app.buttons["add-transaction-button"]
+        XCTAssertTrue(addButton.waitForExistence(timeout: 5), "列表右上「+」应可见")
+        addButton.tap()
+
+        let amountField = app.textFields["amount-field"]
+        XCTAssertTrue(amountField.waitForExistence(timeout: 5), "金额输入框应出现")
+        amountField.tap()
+        amountField.typeText("77.00")
+
+        dismissKeyboardIfPresent()
+
+        let categoryButton = app.buttons["餐饮"]
+        XCTAssertTrue(categoryButton.waitForExistence(timeout: 5), "分类「餐饮」应可选")
+        categoryButton.tap()
+
+        selectPaymentMethod("支付宝")
+
+        let saveButton = app.buttons["保存"]
+        XCTAssertTrue(saveButton.isEnabled, "金额合法时「保存」应可点")
+        saveButton.tap()
+
+        // 点进这笔详情，断言支付方式行显示「支付宝」。
+        let row = transactionRow(amount: "77.00")
+        XCTAssertTrue(row.waitForExistence(timeout: 5), "应先有一笔 77.00")
+        row.tap()
+
+        XCTAssertTrue(app.staticTexts["支付方式"].waitForExistence(timeout: 5), "详情页应有「支付方式」行")
+        XCTAssertTrue(app.staticTexts["支付宝"].waitForExistence(timeout: 5),
+                      "详情页支付方式应显示「支付宝」")
+    }
+
+    // MARK: - 用例 6：优惠（原价 > 实付）→ 列表「省 X」+ 详情「省下 X」
+
+    /// 记一笔→开「有优惠（记原价）」→填原价 100（> 实付 60）→保存。
+    /// 断言列表行出现「省 ¥40.00」，点进详情断言「省下 ¥40.00」。
+    func testDiscountFlow() throws {
+        let addButton = app.buttons["add-transaction-button"]
+        XCTAssertTrue(addButton.waitForExistence(timeout: 5), "列表右上「+」应可见")
+        addButton.tap()
+
+        let amountField = app.textFields["amount-field"]
+        XCTAssertTrue(amountField.waitForExistence(timeout: 5), "金额输入框应出现")
+        amountField.tap()
+        amountField.typeText("60.00")
+
+        dismissKeyboardIfPresent()
+
+        let categoryButton = app.buttons["餐饮"]
+        XCTAssertTrue(categoryButton.waitForExistence(timeout: 5), "分类「餐饮」应可选")
+        categoryButton.tap()
+
+        // 打开优惠开关，露出「原价」输入框。
+        turnOnDiscountToggle()
+
+        let originalField = app.textFields["original-field"]
+        XCTAssertTrue(originalField.waitForExistence(timeout: 5), "开优惠后应出现「原价」输入框")
+        originalField.tap()
+        originalField.typeText("100.00")
+
+        dismissKeyboardIfPresent()
+        app.buttons["保存"].tap()
+
+        // 列表行（合并 Button）label 含「省 ¥40.00」。
+        let savedRow = transactionRow(amount: "60.00")
+        XCTAssertTrue(savedRow.waitForExistence(timeout: 5), "应先有一笔 60.00")
+        let rowShowsDiscount = NSPredicate(format: "label CONTAINS %@", "省 ¥40.00")
+        XCTAssertTrue(app.buttons.containing(rowShowsDiscount).element(boundBy: 0).waitForExistence(timeout: 5),
+                      "列表该行应出现「省 ¥40.00」")
+
+        // 进详情：断言「省下」行与金额。
+        savedRow.tap()
+        XCTAssertTrue(app.staticTexts["省下"].waitForExistence(timeout: 5), "详情页应有「省下」行")
+        XCTAssertTrue(app.staticTexts["¥40.00"].waitForExistence(timeout: 5),
+                      "详情页省下金额应为 ¥40.00")
+    }
+
+    // MARK: - 用例 7（AC-8）：编辑改金额后「取消」→ 列表保持原值
+
+    /// 先有一笔 150 → 进编辑改成 250 → 点「取消」→ 断言列表仍是 150、且 250 未出现。
+    func testEditCancelKeepsUnchanged() throws {
+        addTransaction(amount: "150.00")
+
+        let row = transactionRow(amount: "150.00")
+        XCTAssertTrue(row.waitForExistence(timeout: 5), "应先有一笔 150.00")
+        row.tap()
+
+        let editButton = app.buttons["编辑"]
+        XCTAssertTrue(editButton.waitForExistence(timeout: 5), "详情页应有「编辑」")
+        editButton.tap()
+
+        let amountField = app.textFields["amount-field"]
+        XCTAssertTrue(amountField.waitForExistence(timeout: 5), "编辑表单应有金额框")
+        amountField.tap()
+        clearText(amountField)
+        amountField.typeText("250.00")
+
+        dismissKeyboardIfPresent()
+
+        // 点「取消」放弃改动（AddTransactionView 的 cancellationAction）。
+        let cancelButton = app.buttons["取消"]
+        XCTAssertTrue(cancelButton.waitForExistence(timeout: 5), "编辑表单应有「取消」")
+        cancelButton.tap()
+
+        // 退回列表层级核对。
+        navigateBackToList()
+
+        let oldAmount = transactionAmountText(amount: "150.00")
+        XCTAssertTrue(oldAmount.waitForExistence(timeout: 5), "取消后应仍显示原金额 150.00")
+
+        let oldRowPredicate = NSPredicate(format: "label BEGINSWITH %@ AND label CONTAINS %@", "-", "150.00")
+        XCTAssertEqual(app.staticTexts.containing(oldRowPredicate).count, 1,
+                       "取消编辑后原行 -¥150.00 应仍只有一条")
+
+        let newRowPredicate = NSPredicate(format: "label BEGINSWITH %@ AND label CONTAINS %@", "-", "250.00")
+        XCTAssertEqual(app.staticTexts.containing(newRowPredicate).count, 0,
+                       "取消编辑后未保存的 250.00 不应出现")
     }
 
     // MARK: - 文本框/导航小工具

@@ -63,6 +63,11 @@ struct CategoryEditView: View {
         .navigationTitle(editing == nil ? "新增分类" : "编辑分类")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            // 「取消」：sheet 新增路径提供显式退出（与 AddTransactionView 一致）；
+            // push 编辑路径有系统返回，再加一个取消也安全（同样 dismiss 当前层级）。
+            ToolbarItem(placement: .cancellationAction) {
+                Button("取消") { dismiss() }
+            }
             ToolbarItem(placement: .confirmationAction) {
                 Button("保存", action: save).disabled(!canSave)
             }
